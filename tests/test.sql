@@ -19,7 +19,7 @@ $BODY$
 $BODY$
   LANGUAGE sql VOLATILE;
 
-CREATE OR REPLACE FUNCTION trigger_position()
+CREATE OR REPLACE FUNCTION public.trigger_position()
   RETURNS trigger AS
 $BODY$
 DECLARE
@@ -37,7 +37,7 @@ BEGIN
   END IF;
 
   -- check if trigger is enabled and also skip in-recursion updates
-  IF NOT trigger_is_enabled(TG_TABLE_NAME || '_position_trigger') OR NOT trigger_is_enabled(TG_TABLE_NAME || '_position_trigger_recursion') THEN
+  IF NOT public.trigger_is_enabled(TG_TABLE_NAME || '_position_trigger') OR NOT public.trigger_is_enabled(TG_TABLE_NAME || '_position_trigger_recursion') THEN
     RETURN NULL;
   END IF;
 
@@ -56,7 +56,7 @@ BEGIN
     v_columns text DEFAULT '';
     v_columns_source_table text DEFAULT '';
   BEGIN
-    PERFORM trigger_disable(TG_TABLE_NAME || '_position_trigger_recursion');
+    PERFORM public.trigger_disable(TG_TABLE_NAME || '_position_trigger_recursion');
 
     IF v_group_column_count > 0 THEN
       IF TG_OP = 'INSERT' THEN
@@ -219,7 +219,7 @@ BEGIN
       ';
     END IF;
 
-    PERFORM trigger_enable(TG_TABLE_NAME || '_position_trigger_recursion');
+    PERFORM public.trigger_enable(TG_TABLE_NAME || '_position_trigger_recursion');
   END;
 
   RETURN NULL;
