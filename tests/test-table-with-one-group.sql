@@ -169,6 +169,19 @@ UPDATE tests.test_table_with_one_group SET position = 2 WHERE id = 6;
 */
 SELECT tests.assert_positions('tests.test_table_with_one_group', ARRAY[1, 2, 3, 4, 5], ARRAY[1, 2, 3, 1, 2]);
 
+-- UPDATE NO CHANGE
+UPDATE tests.test_table_with_one_group SET position = 1 WHERE id = 1;
+/*
+ id |   name   | country_id | position
+----+----------+------------+----------
+  1 | 1-first  |          1 |        1
+  2 | 1-second |          1 |        2
+  3 | 1-third  |          1 |        3
+  4 | 2-first  |          2 |        1
+  5 | 2-second |          2 |        2
+*/
+SELECT tests.assert_positions('tests.test_table_with_one_group', ARRAY[1, 2, 3, 4, 5], ARRAY[1, 2, 3, 1, 2]);
+
 -- MOVE FIRST TO SECOND COUNTRY_ID: 2 - ID: 4 -> POSITION: 2
 UPDATE tests.test_table_with_one_group SET position = 2 WHERE id = 4;
 /*

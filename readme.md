@@ -3,11 +3,6 @@
 [![License](https://img.shields.io/badge/license-BSD-blue.svg)](https://github.com/forrest79/pgsql-triggerposition/blob/master/LICENSE.md)
 [![Build](https://github.com/forrest79/PgSQL-TriggerPosition/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/forrest79/PgSQL-TriggerPosition/actions/workflows/build.yml)
 
-## TODO
-
-- optimize NULL/NOT NULL check - don't use always IS (NOT) DISTINCT FROM
-- check final SQL if it is optimized
-
 ## How to use
 
 TODO

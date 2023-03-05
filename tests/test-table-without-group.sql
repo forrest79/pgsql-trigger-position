@@ -142,6 +142,17 @@ UPDATE tests.test_table_without_group SET position = 2 WHERE id = 6;
 */
 SELECT tests.assert_positions('tests.test_table_without_group', ARRAY[5, 2, 3], ARRAY[1, 2, 3]);
 
+-- UPDATE NO CHANGE
+UPDATE tests.test_table_without_group SET position = 1 WHERE id = 5;
+/*
+ id |    name    | position
+----+------------+----------
+  5 | new-second |        1
+  2 | second     |        2
+  3 | third      |        3
+*/
+SELECT tests.assert_positions('tests.test_table_without_group', ARRAY[5, 2, 3], ARRAY[1, 2, 3]);
+
 -- MOVE FIRST TO SECOND - ID: 5 -> POSITION: 2
 UPDATE tests.test_table_without_group SET position = 2 WHERE id = 5;
 /*

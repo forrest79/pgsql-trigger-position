@@ -36,6 +36,16 @@ BEGIN
     RAISE EXCEPTION 'trigger_position() has to be used only as AFTER STATEMENT (called BEFORE STATEMENT)';
   END IF;
 
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    IF NOT EXISTS (SELECT 1 FROM table_new) THEN
+      RETURN NULL;
+    END IF;
+  ELSEIF TG_OP = 'DELETE' THEN
+    IF NOT EXISTS (SELECT 1 FROM table_old) THEN
+      RETURN NULL;
+    END IF;
+  END IF;
+
   v_table_name = quote_ident(TG_TABLE_SCHEMA) || '.' || quote_ident(TG_TABLE_NAME);
 
   IF NOT public.trigger_is_enabled(v_table_name || '_position_trigger') OR NOT public.trigger_is_enabled(v_table_name || '_position_trigger_recursion') THEN
@@ -65,7 +75,7 @@ BEGIN
           v_source_table_where_sql text;
         BEGIN
           SELECT format('''('' || %s || '')''', array_to_string(array_agg(condition), ' || '' AND '' || ')) INTO v_source_table_where_sql FROM (
-            SELECT format('''source_table.%1$I IS NOT DISTINCT FROM '' || coalesce(%1$I::text, ''NULL'')', col) AS condition FROM unnest(in_group_columns) AS col
+            SELECT format('''source_table.%1$I '' || CASE WHEN %1$I IS NOT NULL THEN ''= '' || %1$I ELSE ''IS NULL'' END', col) AS condition FROM unnest(in_group_columns) AS col
           ) AS tmp;
 
           EXECUTE format('
@@ -113,16 +123,26 @@ BEGIN
             INTO v_where_some_group_is_changed, v_where_all_groups_are_same
           FROM (
             SELECT
-              format('t_new.%1$I IS DISTINCT FROM t_old.%1$I', col) AS condition_not_equal,
-              format('t_new.%1$I IS NOT DISTINCT FROM t_old.%1$I', col) AS condition_equal
+              format('(t_new.%1$I != t_old.%1$I OR (t_new.%1$I IS NOT NULL AND t_old.%1$I IS NULL) OR (t_new.%1$I IS NULL AND t_old.%1$I IS NOT NULL))', col) AS condition_not_equal,
+              format('(t_new.%1$I = t_old.%1$I OR (t_new.%1$I IS NULL AND t_old.%1$I IS NULL))', col) AS condition_equal
             FROM unnest(in_group_columns) AS col
           ) AS tmp;
 
           v_columns_t_new = replace(v_columns_template, c_alias, 't_new.');
 
           SELECT
-            format('SELECT %1$s || '''' AS conditions FROM table_new AS t_new JOIN table_old AS t_old ON t_old.%4$I = t_new.%4$I WHERE t_new.%5$I IS DISTINCT FROM t_old.%5$I OR %3$s GROUP BY %2$s', conditions_new, v_columns_t_new, v_where_some_group_is_changed, in_key_column, in_position_column),
-            format('SELECT %1$s || '''' AS conditions FROM table_new AS t_new JOIN table_old AS t_old ON t_old.%4$I = t_new.%4$I WHERE t_new.%5$I IS DISTINCT FROM t_old.%5$I OR %3$s GROUP BY %2$s', conditions_old, replace(v_columns_template, c_alias, 't_old.'), v_where_some_group_is_changed, in_key_column, in_position_column)
+            format('
+              SELECT %1$s || '''' AS conditions
+                FROM table_new AS t_new
+                JOIN table_old AS t_old ON t_old.%4$I = t_new.%4$I
+               WHERE t_new.%5$I IS DISTINCT FROM t_old.%5$I OR %3$s GROUP BY %2$s
+            ', conditions_new, v_columns_t_new, v_where_some_group_is_changed, in_key_column, in_position_column),
+            format('
+              SELECT %1$s || '''' AS conditions
+                FROM table_new AS t_new
+                JOIN table_old AS t_old ON t_old.%4$I = t_new.%4$I
+               WHERE t_new.%5$I IS DISTINCT FROM t_old.%5$I OR %3$s GROUP BY %2$s
+             ', conditions_old, replace(v_columns_template, c_alias, 't_old.'), v_where_some_group_is_changed, in_key_column, in_position_column)
             INTO v_table_new_where_sql, v_table_old_where_sql
           FROM (
             SELECT
@@ -130,8 +150,8 @@ BEGIN
               format('''('' || %s || '')''', array_to_string(array_agg(condition_old), ' || '' AND '' || ')) AS conditions_old
             FROM (
               SELECT
-                format('''source_table.%1$I IS NOT DISTINCT FROM '' || coalesce(t_new.%1$I::text, ''NULL'')', col) AS condition_new,
-                format('''source_table.%1$I IS NOT DISTINCT FROM '' || coalesce(t_old.%1$I::text, ''NULL'')', col) AS condition_old
+                format('''source_table.%1$I '' || CASE WHEN t_new.%1$I IS NOT NULL THEN ''= '' || t_new.%1$I ELSE ''IS NULL'' END', col) AS condition_new,
+                format('''source_table.%1$I '' || CASE WHEN t_old.%1$I IS NOT NULL THEN ''= '' || t_old.%1$I ELSE ''IS NULL'' END', col) AS condition_old
               FROM unnest(in_group_columns) AS col
             ) AS tmp
           ) AS tmp;
@@ -183,27 +203,38 @@ BEGIN
             ) AS merged
         ', v_table_name, in_key_column, in_position_column);
       ELSEIF TG_OP = 'UPDATE' THEN
-        v_from = format('
-          SELECT id, row_number() OVER (ORDER BY order_by_position NULLS LAST, id) AS computed_position, position AS actual_position
-            FROM (
-              SELECT source_table.%2$I AS id, source_table.%3$I + 0.1 AS order_by_position, source_table.%3$I AS position
-                FROM %1$s AS source_table
-                LEFT JOIN (
-                  SELECT t_new.%2$I
+        DECLARE
+          v_has_modified_position boolean;
+        BEGIN
+          EXECUTE format('
+            SELECT EXISTS (SELECT 1 FROM table_new AS t_new JOIN table_old AS t_old ON t_old.%1$I = t_new.%1$I WHERE t_new.%2$I IS DISTINCT FROM t_old.%2$I)',
+            in_key_column, in_position_column
+          ) INTO v_has_modified_position;
+
+          IF v_has_modified_position THEN
+            v_from = format('
+              SELECT id, row_number() OVER (ORDER BY order_by_position NULLS LAST, id) AS computed_position, position AS actual_position
+                FROM (
+                  SELECT source_table.%2$I AS id, source_table.%3$I + 0.1 AS order_by_position, source_table.%3$I AS position
+                    FROM %1$s AS source_table
+                    LEFT JOIN (
+                      SELECT t_new.%2$I
+                        FROM table_new AS t_new
+                        JOIN table_old AS t_old ON t_old.%2$I = t_new.%2$I
+                       WHERE t_new.%3$I IS DISTINCT FROM t_old.%3$I
+                    ) AS except_table ON except_table.%2$I = source_table.%2$I
+                   WHERE except_table.%2$I IS NULL
+
+                  UNION
+
+                  SELECT t_new.%2$I AS id, t_new.%3$I + CASE WHEN t_new.%3$I > t_old.%3$I THEN 0.2 ELSE 0 END AS order_by_position, t_new.%3$I AS position
                     FROM table_new AS t_new
                     JOIN table_old AS t_old ON t_old.%2$I = t_new.%2$I
                    WHERE t_new.%3$I IS DISTINCT FROM t_old.%3$I
-                ) AS except_table ON except_table.%2$I = source_table.%2$I
-               WHERE except_table.%2$I IS NULL
-
-              UNION
-
-              SELECT t_new.%2$I AS id, t_new.%3$I + CASE WHEN t_new.%3$I > t_old.%3$I THEN 0.2 ELSE 0 END AS order_by_position, t_new.%3$I AS position
-                FROM table_new AS t_new
-                JOIN table_old AS t_old ON t_old.%2$I = t_new.%2$I
-               WHERE t_new.%3$I IS DISTINCT FROM t_old.%3$I
-            ) AS merged
-        ', v_table_name, in_key_column, in_position_column);
+                ) AS merged
+            ', v_table_name, in_key_column, in_position_column);
+          END IF;
+        END;
       ELSEIF TG_OP = 'DELETE' THEN
         v_from = format('
           SELECT %2$I AS id, row_number() OVER (ORDER BY %3$I NULLS LAST, %2$I) AS computed_position, %3$I AS actual_position

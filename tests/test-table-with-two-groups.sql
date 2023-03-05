@@ -213,6 +213,21 @@ UPDATE tests.test_table_with_two_groups SET position = 2 WHERE id = 10;
 */
 SELECT tests.assert_positions('tests.test_table_with_two_groups', ARRAY[8, 9, 3, 4, 5, 7, 6], ARRAY[1, 2, 3, 1, 2, 1, 2]);
 
+-- UPDATE NO CHANGE
+UPDATE tests.test_table_with_two_groups SET position = 1 WHERE id = 8;
+/*
+ id |      name      | country_id | town_id | position
+----+----------------+------------+---------+----------
+  8 | 1-1-new-second |          1 |       1 |        1
+  9 | 1-1-new-fourth |          1 |       1 |        2
+  3 | 1-1-third      |          1 |       1 |        3
+  5 | 1-2-second     |          1 |       2 |        1
+  4 | 1-2-first      |          1 |       2 |        2
+  7 | 2-1-new-first  |          2 |       1 |        1
+  6 | 2-1-first      |          2 |       1 |        2
+*/
+SELECT tests.assert_positions('tests.test_table_with_two_groups', ARRAY[8, 9, 3, 4, 5, 7, 6], ARRAY[1, 2, 3, 1, 2, 1, 2]);
+
 -- MOVE FIRST TO SECOND COUNTRY_ID: 1, TOWN_ID: 1 - ID: 8 -> POSITION: 2
 UPDATE tests.test_table_with_two_groups SET position = 2 WHERE id = 8;
 /*

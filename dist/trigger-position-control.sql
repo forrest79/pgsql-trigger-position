@@ -47,13 +47,12 @@ BEGIN
   EXECUTE format('
       CREATE TRIGGER %2$s_position_trigger_delete
         AFTER DELETE ON %1$s.%2$s
-        %3$s
+        REFERENCING OLD TABLE AS table_old
         FOR EACH STATEMENT
-        EXECUTE FUNCTION public.trigger_position(%4$s)
+        EXECUTE FUNCTION public.trigger_position(%3$s)
     ',
     in_schema_name,
     in_table_name,
-    CASE WHEN in_group_columns IS NULL THEN '' ELSE ' REFERENCING OLD TABLE AS table_old' END,
     array_to_string(v_args, ', ')
   );
 END;
