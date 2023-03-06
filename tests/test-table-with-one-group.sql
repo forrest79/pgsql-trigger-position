@@ -334,7 +334,7 @@ SELECT tests.assert_positions('tests.test_table_with_one_group', ARRAY[2, 5, 1, 
 -- - FIFTH COUNTRY_ID: 1 TO FIRST ID: 10 -> POSITION: 1
 -- - SECOND COUNTRY_ID: 1 TO FIFTH ID: 5 -> POSITION: 5
 -- - FIRST COUNTRY_ID: 2 TO SECOND ID: 12 -> POSITION: 2
--- - FIFTH COUNTRY_ID: 2 TO COUNTRY_ID: 1 ID: 11 -> POSITION: 6
+-- - FIFTH COUNTRY_ID: 2 TO COUNTRY_ID: 1 ID: 11 -> COUNTRY_ID: 1, POSITION: 6
 UPDATE tests.test_table_with_one_group AS t
    SET position = x.position,
        country_id = x.country_id

@@ -5,9 +5,8 @@
 
 ## TODO
 
-- columns array - array_map with prefix
-- simplify + format()
-- GROUP BY NULL/NOT NULL columns?
+- optimize NULL/NOT NULL check - don't use always IS (NOT) DISTINCT FROM
+- check final SQL if it is optimized
 
 ## How to use
 
@@ -22,3 +21,7 @@ TODO
 ```bash
 PGPASSWORD=postgres tests/run-tests
 ```
+
+### ToDo?
+
+- add settings to group column not by its value, but just NULL/NOT NULL (can be solved with generated columns right now, it can be handy for columns like `deleted_datetime` - when `NULL` is for active records and timestamp is for deleted records - but with this, deleted record can't be sorted with `position` - every timestamp will have `position = 1`...)
