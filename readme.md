@@ -5,7 +5,20 @@
 
 ## TODO
 
-- UPDATE with GROUP - where from old and new
-- tests
+- columns array - array_map with prefix
 - simplify + format()
-- GROUP BY NULL/NOT NULL columns
+- GROUP BY NULL/NOT NULL columns?
+
+## How to use
+
+TODO
+
+## How it works
+
+TODO
+
+### Tests
+
+```bash
+PGPASSWORD=postgres tests/run-tests
+```

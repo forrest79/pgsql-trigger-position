@@ -1,26 +1,28 @@
 CREATE SCHEMA IF NOT EXISTS system;
 
-CREATE OR REPLACE FUNCTION system.trigger_position_add(in_schema_name text, in_table_name text, in_group_columns text, in_key_column text, in_position_column text)
+CREATE OR REPLACE FUNCTION system.trigger_position_add(in_schema_name text, in_table_name text, in_group_columns text DEFAULT NULL, in_key_column text DEFAULT NULL, in_position_column text DEFAULT NULL)
   RETURNS void AS
 $BODY$
 DECLARE
   v_args text[] DEFAULT ARRAY[]::text[];
 BEGIN
-  v_args = v_args || CASE WHEN in_group_columns IS NULL THEN 'NULL' ELSE '{' || in_group_columns || '}' END;
-  v_args = v_args || coalesce(in_key_column, 'NULL');
-  v_args = v_args || coalesce(in_position_column, 'NULL');
+  v_args = v_args || ('''{' || coalesce(in_group_columns, '') || '}''');
+  v_args = v_args || ('''' || coalesce(in_key_column, 'id') || '''');
+  v_args = v_args || ('''' || coalesce(in_position_column, 'position') || '''');
 
-  FOR i IN REVERSE 1 .. array_length(v_args, 1) LOOP
-    IF v_args[i] !== 'NULL' THEN
-      EXIT;
+  IF in_position_column IS NULL THEN
+    v_args = v_args[:2];
+    IF in_key_column IS NULL THEN
+      v_args = v_args[:1];
+      IF in_group_columns IS NULL THEN
+        v_args = v_args[:0];
+      END IF;
     END IF;
-
-    v_args = trim_array(v_args, 1);
-  END LOOP;
+  END IF;
 
   EXECUTE format('
       CREATE TRIGGER %2$s_position_trigger_insert
-        AFTER INSERT ON %1$s%.%2$s
+        AFTER INSERT ON %1$s.%2$s
         REFERENCING NEW TABLE AS table_new
         FOR EACH STATEMENT
         EXECUTE FUNCTION public.trigger_position(%3$s)
@@ -32,7 +34,7 @@ BEGIN
 
   EXECUTE format('
       CREATE TRIGGER %2$s_position_trigger_update
-        AFTER UPDATE ON %1$s%.%2$s
+        AFTER UPDATE ON %1$s.%2$s
         REFERENCING NEW TABLE AS table_new OLD TABLE AS table_old
         FOR EACH STATEMENT
         EXECUTE FUNCTION public.trigger_position(%3$s)
@@ -44,8 +46,8 @@ BEGIN
 
   EXECUTE format('
       CREATE TRIGGER %2$s_position_trigger_delete
-        AFTER DELETE ON %1$s%.%2$s%
-        3$s
+        AFTER DELETE ON %1$s.%2$s
+        %3$s
         FOR EACH STATEMENT
         EXECUTE FUNCTION public.trigger_position(%4$s)
     ',
@@ -58,7 +60,7 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE;
 
-CREATE OR REPLACE FUNCTION system.trigger_position_add(in_schema_name text, in_table_name text)
+CREATE OR REPLACE FUNCTION system.trigger_position_remove(in_schema_name text, in_table_name text)
   RETURNS void AS
 $BODY$
 BEGIN

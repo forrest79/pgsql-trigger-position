@@ -19,6 +19,7 @@ jobs:
       postgres:
         image: postgres:${{ matrix.postgresql-versions }}
         env:
+          POSTGRES_HOST: localhost
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
@@ -28,11 +29,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 8.2
-          coverage: none
-
       - name: Run tests
-        run: tests/run-tests
+        run: PGPASSWORD=postgres tests/run-tests
