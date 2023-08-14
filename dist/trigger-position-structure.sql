@@ -57,7 +57,7 @@ BEGIN
   in_position_column = coalesce(TG_ARGV[2], 'position');
 
   DECLARE
-    c_alias CONSTANT TEXT DEFAULT '{$alias}';
+    c_alias CONSTANT text DEFAULT '{$alias}';
     v_from text;
     v_source_table_where text;
     v_columns_template text;
@@ -94,7 +94,7 @@ BEGIN
                      WHERE except_table.%5$I IS NULL
                        AND (%3$s)
 
-                    UNION
+                     UNION
 
                     SELECT %5$I AS id, %6$I AS order_by_position, %6$I AS position, %2$s
                       FROM table_new
@@ -135,13 +135,15 @@ BEGIN
               SELECT %1$s || '''' AS conditions
                 FROM table_new AS t_new
                 JOIN table_old AS t_old ON t_old.%4$I = t_new.%4$I
-               WHERE t_new.%5$I IS DISTINCT FROM t_old.%5$I OR %3$s GROUP BY %2$s
+               WHERE t_new.%5$I IS DISTINCT FROM t_old.%5$I OR %3$s
+               GROUP BY %2$s
             ', conditions_new, v_columns_t_new, v_where_some_group_is_changed, in_key_column, in_position_column),
             format('
               SELECT %1$s || '''' AS conditions
                 FROM table_new AS t_new
                 JOIN table_old AS t_old ON t_old.%4$I = t_new.%4$I
-               WHERE t_new.%5$I IS DISTINCT FROM t_old.%5$I OR %3$s GROUP BY %2$s
+               WHERE t_new.%5$I IS DISTINCT FROM t_old.%5$I OR %3$s
+               GROUP BY %2$s
              ', conditions_old, replace(v_columns_template, c_alias, 't_old.'), v_where_some_group_is_changed, in_key_column, in_position_column)
             INTO v_table_new_where_sql, v_table_old_where_sql
           FROM (
@@ -173,7 +175,7 @@ BEGIN
                    WHERE except_table.%8$I IS NULL
                      AND (%3$s)
 
-                  UNION
+                   UNION
 
                   SELECT t_new.%8$I AS id, t_new.%9$I + CASE WHEN (t_new.%9$I > t_old.%9$I) AND (%5$s) THEN 0.2 ELSE 0 END AS order_by_position, t_new.%9$I AS position, %6$s
                     FROM table_new AS t_new
@@ -192,11 +194,11 @@ BEGIN
           SELECT id, row_number() OVER (ORDER BY order_by_position NULLS LAST, id) AS computed_position, position AS actual_position
             FROM (
               SELECT source_table.%2$I AS id, source_table.%3$I + 0.1 AS order_by_position, source_table.%3$I AS position
-                FROM ' || v_table_name || ' AS source_table
+                FROM %1$s AS source_table
                 LEFT JOIN table_new AS except_table ON except_table.%2$I = source_table.%2$I
                WHERE except_table.%2$I IS NULL
 
-              UNION
+               UNION
 
               SELECT %2$I AS id, %3$I AS order_by_position, %3$I AS position
                 FROM table_new
@@ -225,7 +227,7 @@ BEGIN
                     ) AS except_table ON except_table.%2$I = source_table.%2$I
                    WHERE except_table.%2$I IS NULL
 
-                  UNION
+                   UNION
 
                   SELECT t_new.%2$I AS id, t_new.%3$I + CASE WHEN t_new.%3$I > t_old.%3$I THEN 0.2 ELSE 0 END AS order_by_position, t_new.%3$I AS position
                     FROM table_new AS t_new
