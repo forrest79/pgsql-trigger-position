@@ -8,11 +8,11 @@ on:
 
 jobs:
   run:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-latest'
 
     strategy:
       matrix:
-        postgresql-versions: ['11', '12', '13', '14', '15', '16']
+        postgresql-versions: ['11', '12', '13', '14', '15', '16', '17']
       fail-fast: false
 
     services:
