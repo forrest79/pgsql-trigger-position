@@ -7,7 +7,7 @@ Trigger position is a PostgreSQL trigger function that can simply manage your po
 
 It can handle positions for simple table and also for the complex tables, where different groups have different positions.
 
-Tested on PostgreSQL 11, 12, 13, 14 and 15.   
+Tested on PostgreSQL 11, 12, 13, 14, 15, 16 and 17.   
 
 ## How to use
 
